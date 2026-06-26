@@ -55,13 +55,10 @@ program
     console.log(JSON.stringify(config, null, 2));
   });
 
-// Catch-all for generic string commands like: swiss "hello"
-program
-  .argument('[prompt...]', 'The prompt or command to execute')
-  .action(async (promptArray: string[]) => {
-    if (!promptArray || promptArray.length === 0) return;
-    const prompt = promptArray.join(' ');
-    console.log(chalk.blue('Pi CLI Framework Initiated...'));
+import * as readline from 'readline';
+
+async function executeCoreLoop(prompt: string) {
+    console.log(chalk.blue('\nPi CLI Framework Initiated...'));
     
     // --- Phase 4: Session Resume ---
     const lastSession = memory.injectSessionSummary();
@@ -105,7 +102,6 @@ program
       const res = graphTool.execute("Architecture Diagram", "graph TD;\n    A-->B;\n    A-->C;\n    B-->D;\n    C-->D;");
       console.log(chalk.cyan(`[GRAPHIFY] ${res}`));
     }
-
     
     // --- Phase 5: Noise Cancellation ---
     console.log(chalk.gray(`[DEBUG] Simulating 10,000 lines of terminal output...`));
@@ -118,7 +114,51 @@ program
     const rawLogs = `Prompt: ${prompt} | Output: ${majorResponse} | Filtered Logs: ${cleanLog}`;
     const compressed = await memory.compressSession(providerRouter, rawLogs);
     memory.autoSave(compressed);
-    console.log(chalk.yellow(`[MEMORY] Auto-Save Complete.`));
+    console.log(chalk.yellow(`[MEMORY] Auto-Save Complete.\n`));
+}
+
+async function runInteractiveMode() {
+  console.log(chalk.cyan('\n🇨🇭 Welcome to Swiss Army CLI Interactive Mode 🇨🇭'));
+  console.log(chalk.gray('Type your commands below. Type "exit" or "quit" to leave.'));
+  
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    prompt: chalk.green('swiss > ')
   });
 
-program.parse();
+  rl.prompt();
+
+  rl.on('line', async (line) => {
+    const promptText = line.trim();
+    if (promptText.toLowerCase() === 'exit' || promptText.toLowerCase() === 'quit') {
+      console.log(chalk.cyan('Goodbye!'));
+      process.exit(0);
+    }
+    
+    if (promptText) {
+      await executeCoreLoop(promptText);
+    }
+    rl.prompt();
+  }).on('close', () => {
+    console.log(chalk.cyan('Goodbye!'));
+    process.exit(0);
+  });
+}
+
+program
+  .argument('[prompt...]', 'The prompt or command to execute')
+  .action(async (promptArray: string[]) => {
+    if (!promptArray || promptArray.length === 0) {
+      await runInteractiveMode();
+      return;
+    }
+    const prompt = promptArray.join(' ');
+    await executeCoreLoop(prompt);
+  });
+
+if (process.argv.length <= 2) {
+  runInteractiveMode();
+} else {
+  program.parse();
+}
