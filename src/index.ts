@@ -6,6 +6,8 @@ import { ConfigManager } from './config/ConfigManager';
 import { AdaptiveMemory } from './memory/AdaptiveMemory';
 import { ContextFilter } from './filter/ContextFilter';
 import { ToolSearch } from './mcp/ToolSearch';
+import { PERSONA_REGISTRY } from './personas/PersonaRegistry';
+import { DynamicPersona } from './personas/DynamicPersona';
 
 const program = new Command();
 const agentRouter = new AgentRouter();
@@ -54,12 +56,15 @@ program
     console.log(chalk.gray(`[MINOR] -> ${minorResponse}`));
     
     // Pass to our Agent Router
-    const intent = agentRouter.route(prompt);
-    console.log(chalk.magenta(`[ROUTER] -> ${intent}`));
+    const personaId = agentRouter.route(prompt);
+    const personaDef = PERSONA_REGISTRY.find(p => p.id === personaId) || PERSONA_REGISTRY[0];
+    console.log(chalk.magenta(`[ROUTER] -> Instantiating Sub-Agent: ${personaDef.name} (${personaDef.role})`));
 
-    // Major model routing for actual execution
-    console.log(chalk.gray(`[DEBUG] Executing heavy task on Major Model...`));
-    const majorResponse = await providerRouter.routeRequest({ tier: 'major', prompt });
+    // Execute heavy task via Dynamic Persona
+    console.log(chalk.gray(`[DEBUG] Handing task to ${personaDef.name} on Major Model...`));
+    const persona = new DynamicPersona(personaDef, providerRouter);
+    const majorResponse = await persona.execute(prompt, tools, lastSession);
+    
     console.log(chalk.green(`\nFinal output:\n${majorResponse}\n`));
     
     // --- Phase 5: Noise Cancellation ---
