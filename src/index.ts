@@ -4,11 +4,13 @@ import { AgentRouter } from './router/AgentRouter';
 import { ProviderRouter } from './llm/ProviderRouter';
 import { ConfigManager } from './config/ConfigManager';
 import { AdaptiveMemory } from './memory/AdaptiveMemory';
+import { ContextFilter } from './filter/ContextFilter';
 
 const program = new Command();
 const agentRouter = new AgentRouter();
 const providerRouter = new ProviderRouter();
 const memory = new AdaptiveMemory();
+const filter = new ContextFilter();
 
 program
   .name('swiss')
@@ -52,9 +54,15 @@ program
     const majorResponse = await providerRouter.routeRequest({ tier: 'major', prompt });
     console.log(chalk.green(`\nFinal output:\n${majorResponse}\n`));
     
+    // --- Phase 5: Noise Cancellation ---
+    console.log(chalk.gray(`[DEBUG] Simulating 10,000 lines of terminal output...`));
+    const mockNoisyLog = `[INFO] Building project...\nDownloading massive dependency... [100%]\nnpm ERR! EACCES permission denied\nExtracting... OK\n`;
+    const cleanLog = filter.stripNoise(mockNoisyLog);
+    console.log(chalk.red(`[FILTER] Terminal output reduced to:\n${cleanLog}`));
+
     // --- Phase 4: Session Auto-Save ---
     console.log(chalk.gray(`[DEBUG] Compressing session and Auto-Saving to SQLite...`));
-    const rawLogs = `Prompt: ${prompt} | Output: ${majorResponse}`;
+    const rawLogs = `Prompt: ${prompt} | Output: ${majorResponse} | Filtered Logs: ${cleanLog}`;
     const compressed = await memory.compressSession(providerRouter, rawLogs);
     memory.autoSave(compressed);
     console.log(chalk.yellow(`[MEMORY] Auto-Save Complete.`));
