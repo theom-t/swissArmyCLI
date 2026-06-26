@@ -272,16 +272,15 @@ async function runInteractiveMode() {
     console.log(chalk.cyan(`[LAUNCH] Booting Pi CLI frontend...\n`));
     
     // Spawn Pi CLI configured to use our Proxy
+    const envOverrides = { ...process.env };
+    delete envOverrides.OPENAI_API_KEY;
+    delete envOverrides.OPENAI_BASE_URL;
+    
     const piProcess = spawn('npx', ['-y', '@earendil-works/pi-coding-agent', '--model', 'openai/gpt-4o'], {
       stdio: 'inherit',
       env: {
-        ...process.env,
-        PI_MODEL: 'openai/gpt-4o',
-        OPENAI_BASE_URL: `http://127.0.0.1:${PORT}/v1`,
-        OPENAI_API_BASE: `http://127.0.0.1:${PORT}/v1`,
-        OPENAI_API_URL: `http://127.0.0.1:${PORT}/v1`,
-        OPENAI_URL: `http://127.0.0.1:${PORT}/v1`,
-        OPENAI_API_KEY: 'swiss-dummy-key'
+        ...envOverrides,
+        PI_MODEL: 'openai/gpt-4o'
       }
     });
 
