@@ -238,7 +238,7 @@ async function runInteractiveMode() {
       stdio: 'inherit',
       env: {
         ...process.env,
-        PI_MODEL: 'swiss-agent'
+        PI_MODEL: 'swiss-proxy/swiss-agent'
       }
     });
 
