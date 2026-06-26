@@ -3,10 +3,12 @@ import chalk from 'chalk';
 import { AgentRouter } from './router/AgentRouter';
 import { ProviderRouter } from './llm/ProviderRouter';
 import { ConfigManager } from './config/ConfigManager';
+import { AdaptiveMemory } from './memory/AdaptiveMemory';
 
 const program = new Command();
 const agentRouter = new AgentRouter();
 const providerRouter = new ProviderRouter();
+const memory = new AdaptiveMemory();
 
 program
   .name('swiss')
@@ -30,6 +32,12 @@ program
     const prompt = promptArray.join(' ');
     console.log(chalk.blue('Pi CLI Framework Initiated...'));
     
+    // --- Phase 4: Session Resume ---
+    const lastSession = memory.injectSessionSummary();
+    if (lastSession) {
+      console.log(chalk.yellow(`[MEMORY] Resuming session: ${lastSession}`));
+    }
+    
     // Minor model routing for intent parsing
     console.log(chalk.gray(`[DEBUG] Sending intent parsing to Minor Model...`));
     const minorResponse = await providerRouter.routeRequest({ tier: 'minor', prompt });
@@ -43,6 +51,13 @@ program
     console.log(chalk.gray(`[DEBUG] Executing heavy task on Major Model...`));
     const majorResponse = await providerRouter.routeRequest({ tier: 'major', prompt });
     console.log(chalk.green(`\nFinal output:\n${majorResponse}\n`));
+    
+    // --- Phase 4: Session Auto-Save ---
+    console.log(chalk.gray(`[DEBUG] Compressing session and Auto-Saving to SQLite...`));
+    const rawLogs = `Prompt: ${prompt} | Output: ${majorResponse}`;
+    const compressed = await memory.compressSession(providerRouter, rawLogs);
+    memory.autoSave(compressed);
+    console.log(chalk.yellow(`[MEMORY] Auto-Save Complete.`));
   });
 
 program.parse();
