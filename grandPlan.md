@@ -58,3 +58,22 @@ To ensure changes never break the system as it scales, the project will strictly
 *   Implement specialized agents.
 *   Connect the Repository Knowledge Graph (CodeWiki) logic to the Engineering Persona.
 *   **Verification:** Run complex end-to-end tasks (e.g., "Analyze the routing folder and document it") and use Harbor to benchmark token efficiency against a baseline.
+
+## Phase 8: CodeWiki & Understand-Anything (Sprint 8)
+**Goal:** Implement the living knowledge graph system.
+*   Create a background `Technical Writer` agent that hooks into code-modification commands.
+*   Auto-generate and update `.swiss/CodeWiki.json` and Markdown docs so the system understands its own architecture.
+*   **Verification:** Run a command that changes architecture. Verify the CodeWiki updates automatically in the background without user intervention.
+
+## Phase 9: Graphify Multimodal Integration (Sprint 9)
+**Goal:** Convert textual data and complex codebases into beautiful visual graphs.
+*   Implement a `generate_graph` MCP tool available to Data Scientist and System Architect personas.
+*   Support outputting Mermaid.js, PlantUML, or connecting to the Graphify multimodal API.
+*   **Verification:** Ask the CLI to "graph the project structure". Verify it generates a valid Mermaid diagram or SVG graphic.
+
+## Phase 10: Comparative Benchmarking & Harbor Evals (Sprint 10)
+**Goal:** Prove the CLI's efficiency by running comparative evaluations.
+*   Build a `swiss eval` comparative testing suite.
+*   Run the exact same prompt through a raw AI Agent (e.g., Antigravity CLI / Gemini API directly) vs. the `Swiss Army CLI` (which uses Ponytail, Context Filter, ToolSearch).
+*   Measure and output a comparative table showing Token Count (In/Out), Latency, Accuracy, and Usefulness.
+*   **Verification:** Run `swiss eval --suite standard`. The system must output a report proving the Swiss Army CLI uses significantly fewer tokens while passing all accuracy checks.
