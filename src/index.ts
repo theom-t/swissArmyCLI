@@ -117,32 +117,132 @@ async function executeCoreLoop(prompt: string) {
     console.log(chalk.yellow(`[MEMORY] Auto-Save Complete.\n`));
 }
 
+import express from 'express';
+import cors from 'cors';
+import { spawn } from 'child_process';
+import { Readable } from 'stream';
+
 async function runInteractiveMode() {
-  console.log(chalk.cyan('\n🇨🇭 Welcome to Swiss Army CLI Interactive Mode 🇨🇭'));
-  console.log(chalk.gray('Type your commands below. Type "exit" or "quit" to leave.'));
+  console.log(chalk.cyan('\n🇨🇭 Booting Swiss Army Proxy Brain...'));
   
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: chalk.green('swiss > ')
+  const app = express();
+  app.use(cors());
+  app.use(express.json({ limit: '50mb' }));
+
+  const config = new ConfigManager().getConfig();
+  const apiKey = config.api_keys?.google;
+
+  if (!apiKey) {
+    console.log(chalk.red('ERROR: No Google API key found in ~/.swissrc. Please run "swiss config" and configure your keys.'));
+    process.exit(1);
+  }
+
+  // Intercept the chat completions route
+  app.post('/v1/chat/completions', async (req, res) => {
+    try {
+      const payload = req.body;
+      
+      // 1. Noise Cancellation (Context Filter)
+      if (payload.messages) {
+        for (let msg of payload.messages) {
+          if (msg.role === 'tool' || msg.role === 'user') {
+             if (typeof msg.content === 'string') {
+                msg.content = filter.stripNoise(msg.content);
+             }
+          }
+        }
+      }
+
+      // 2. Identify Intent & Route Persona
+      const lastUserMsg = payload.messages.slice().reverse().find((m: any) => m.role === 'user');
+      let personaId = 'software_engineer';
+      if (lastUserMsg && typeof lastUserMsg.content === 'string') {
+         personaId = agentRouter.route(lastUserMsg.content);
+      }
+      
+      const personaDef = PERSONA_REGISTRY.find(p => p.id === personaId) || PERSONA_REGISTRY[0];
+      console.log(chalk.magenta(`\n[ROUTER] -> Forwarding task via Sub-Agent: ${personaDef.name} (${personaDef.role})`));
+
+      // 3. Inject Ponytail & Persona Rules into the System Prompt
+      let systemMsg = payload.messages.find((m: any) => m.role === 'system');
+      if (!systemMsg) {
+        systemMsg = { role: 'system', content: '' };
+        payload.messages.unshift(systemMsg);
+      }
+      
+      const ponytailRules = "\n\nPONYTAIL RULES: Deletion over addition. Fewest files possible. Do not write abstractions unless explicitly requested. Stop at the first rung of the efficiency ladder (YAGNI, Reuse, Stdlib, Native, Dependency, One-liner, Minimum code).";
+      const wikiContext = "\n\nCODEWIKI CONTEXT:\n" + codeWiki.getWikiContext();
+      
+      systemMsg.content += `\n\nYou are acting as the Persona: ${personaDef.name}. ${personaDef.systemPrompt}${ponytailRules}${wikiContext}`;
+
+      // 4. Forward to Real LLM via OpenAI Compatible Endpoint
+      const cleanModel = config.models.major.replace(/^google\//, '').replace(/^gemini\//, '');
+      const targetUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+      
+      console.log(chalk.gray(`[PROXY] Forwarding optimized payload to Gemini (${cleanModel})...`));
+      
+      const response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          ...payload,
+          model: cleanModel
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log(chalk.red(`[PROXY ERROR]: ${errorText}`));
+        return res.status(response.status).send(errorText);
+      }
+
+      // 5. Stream back or JSON back
+      if (payload.stream) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        
+        if (response.body) {
+           const nodeStream = Readable.fromWeb(response.body as any);
+           nodeStream.pipe(res);
+        } else {
+           res.end();
+        }
+      } else {
+        const data = await response.json();
+        res.json(data);
+      }
+
+    } catch (e: any) {
+      console.log(chalk.red(`[PROXY CRASH]: ${e.message}`));
+      res.status(500).json({ error: e.message });
+    }
   });
 
-  rl.prompt();
-
-  rl.on('line', async (line) => {
-    const promptText = line.trim();
-    if (promptText.toLowerCase() === 'exit' || promptText.toLowerCase() === 'quit') {
-      console.log(chalk.cyan('Goodbye!'));
-      process.exit(0);
-    }
+  const PORT = 11435;
+  const server = app.listen(PORT, () => {
+    console.log(chalk.green(`[PROXY] Swiss Army proxy listening on http://localhost:${PORT}`));
+    console.log(chalk.cyan(`[LAUNCH] Booting Pi CLI frontend...\n`));
     
-    if (promptText) {
-      await executeCoreLoop(promptText);
-    }
-    rl.prompt();
-  }).on('close', () => {
-    console.log(chalk.cyan('Goodbye!'));
-    process.exit(0);
+    // Spawn Pi CLI configured to use our Proxy
+    const piProcess = spawn('npx', ['-y', '@earendil-works/pi-coding-agent'], {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        OPENAI_API_KEY: 'swiss-dummy-key',
+        OPENAI_BASE_URL: `http://localhost:${PORT}/v1`,
+        PI_MODEL: 'gpt-4o'
+      }
+    });
+
+    piProcess.on('exit', () => {
+      console.log(chalk.cyan('\n[EXIT] Pi CLI closed. Shutting down Swiss Army Proxy.'));
+      server.close();
+      process.exit(0);
+    });
   });
 }
 
