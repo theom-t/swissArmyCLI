@@ -196,7 +196,12 @@ async function runInteractiveMode() {
       if (!response.ok) {
         const errorText = await response.text();
         console.log(chalk.red(`[PROXY ERROR]: ${errorText}`));
-        return res.status(response.status).send(errorText);
+        return res.status(response.status).json({
+          error: {
+            message: `[Swiss Proxy Error] Upstream returned ${response.status}: ${errorText}`,
+            type: "api_error"
+          }
+        });
       }
 
       // 5. Stream back or JSON back
@@ -204,6 +209,7 @@ async function runInteractiveMode() {
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders(); // Required to prevent hanging in pi CLI
         
         if (response.body) {
            const nodeStream = Readable.fromWeb(response.body as any);
@@ -232,9 +238,7 @@ async function runInteractiveMode() {
       stdio: 'inherit',
       env: {
         ...process.env,
-        OPENAI_API_KEY: 'swiss-dummy-key',
-        OPENAI_BASE_URL: `http://localhost:${PORT}/v1`,
-        PI_MODEL: 'gpt-4o'
+        PI_MODEL: 'swiss-agent'
       }
     });
 
