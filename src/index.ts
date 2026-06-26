@@ -155,6 +155,20 @@ async function runInteractiveMode() {
     process.exit(1);
   }
 
+  // Catch all requests for debugging
+  app.use((req, res, next) => {
+    writeLog(`[HTTP INCOMING] ${req.method} ${req.originalUrl}`);
+    next();
+  });
+
+  // Handle OpenAI's models endpoint just in case Pi checks it
+  app.get('/v1/models', (req, res) => {
+    writeLog(`[PROXY INCOMING] Received GET /v1/models`);
+    res.json({
+      data: [{ id: "swiss-agent", object: "model", created: Date.now(), owned_by: "swiss" }]
+    });
+  });
+
   // Intercept the chat completions route
   app.post('/v1/chat/completions', async (req, res) => {
     try {
@@ -252,17 +266,19 @@ async function runInteractiveMode() {
   });
 
   const PORT = 11435;
-  const server = app.listen(PORT, () => {
-    writeLog(`[PROXY READY] Server listening on http://localhost:${PORT}`);
-    console.log(chalk.green(`[PROXY] Swiss Army proxy listening on http://localhost:${PORT}`));
+  const server = app.listen(PORT, '127.0.0.1', () => {
+    writeLog(`[PROXY READY] Server listening on http://127.0.0.1:${PORT}`);
+    console.log(chalk.green(`[PROXY] Swiss Army proxy listening on http://127.0.0.1:${PORT}`));
     console.log(chalk.cyan(`[LAUNCH] Booting Pi CLI frontend...\n`));
     
     // Spawn Pi CLI configured to use our Proxy
-    const piProcess = spawn('npx', ['-y', '@earendil-works/pi-coding-agent'], {
+    const piProcess = spawn('npx', ['-y', '@earendil-works/pi-coding-agent', '--model', 'swiss-proxy/swiss-agent'], {
       stdio: 'inherit',
       env: {
         ...process.env,
-        PI_MODEL: 'swiss-proxy/swiss-agent'
+        PI_MODEL: 'swiss-proxy/swiss-agent',
+        OPENAI_BASE_URL: `http://127.0.0.1:${PORT}/v1`,
+        OPENAI_API_KEY: 'swiss-dummy-key'
       }
     });
 
