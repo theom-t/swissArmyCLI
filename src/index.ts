@@ -5,12 +5,14 @@ import { ProviderRouter } from './llm/ProviderRouter';
 import { ConfigManager } from './config/ConfigManager';
 import { AdaptiveMemory } from './memory/AdaptiveMemory';
 import { ContextFilter } from './filter/ContextFilter';
+import { ToolSearch } from './mcp/ToolSearch';
 
 const program = new Command();
 const agentRouter = new AgentRouter();
 const providerRouter = new ProviderRouter();
 const memory = new AdaptiveMemory();
 const filter = new ContextFilter();
+const toolSearch = new ToolSearch();
 
 program
   .name('swiss')
@@ -39,6 +41,12 @@ program
     if (lastSession) {
       console.log(chalk.yellow(`[MEMORY] Resuming session: ${lastSession}`));
     }
+    
+    // --- Phase 6: Deferred Tool Search ---
+    console.log(chalk.gray(`[DEBUG] Performing embedding search for relevant MCP Tools...`));
+    const tools = toolSearch.searchTools(prompt);
+    console.log(chalk.cyan(`[TOOL SEARCH] Found ${tools.length} relevant schemas to load into context.`));
+    tools.forEach(t => console.log(chalk.cyan(`  - ${t.name}`)));
     
     // Minor model routing for intent parsing
     console.log(chalk.gray(`[DEBUG] Sending intent parsing to Minor Model...`));
