@@ -20,5 +20,6 @@ export const PERSONA_REGISTRY: PersonaDefinition[] = [
   { id: 'ux_designer', name: 'UX Designer', role: 'Designs accessible and beautiful interfaces', systemPrompt: 'You are a UX Designer. Focus on user journeys, accessibility, and modern UI/UX principles.' },
   { id: 'data_scientist', name: 'Data Scientist', role: 'Analyzes data and builds ML models', systemPrompt: 'You are a Data Scientist. Focus on data modeling, statistics, and machine learning.' },
   { id: 'database_admin', name: 'Database Admin', role: 'Designs and optimizes database schemas', systemPrompt: 'You are a Database Administrator. Focus on SQL optimization, indexing, and schema design.' },
-  { id: 'scrum_master', name: 'Scrum Master', role: 'Facilitates agile processes', systemPrompt: 'You are a Scrum Master. Focus on removing blockers, facilitating ceremonies, and team velocity.' }
+  { id: 'scrum_master', name: 'Scrum Master', role: 'Facilitates agile processes', systemPrompt: 'You are a Scrum Master. Focus on removing blockers, facilitating ceremonies, and team velocity.' },
+  { id: 'technical_writer', name: 'Technical Writer', role: 'Maintains Living Documentation', systemPrompt: 'You are a Technical Writer. Focus on keeping the CodeWiki and architecture documentation perfectly accurate and up to date.' }
 ];

@@ -8,6 +8,7 @@ import { ContextFilter } from './filter/ContextFilter';
 import { ToolSearch } from './mcp/ToolSearch';
 import { PERSONA_REGISTRY } from './personas/PersonaRegistry';
 import { DynamicPersona } from './personas/DynamicPersona';
+import { CodeWikiManager } from './wiki/CodeWikiManager';
 
 const program = new Command();
 const agentRouter = new AgentRouter();
@@ -15,6 +16,7 @@ const providerRouter = new ProviderRouter();
 const memory = new AdaptiveMemory();
 const filter = new ContextFilter();
 const toolSearch = new ToolSearch();
+const codeWiki = new CodeWikiManager(providerRouter);
 
 program
   .name('swiss')
@@ -66,6 +68,14 @@ program
     const majorResponse = await persona.execute(prompt, tools, lastSession);
     
     console.log(chalk.green(`\nFinal output:\n${majorResponse}\n`));
+    
+    // --- Phase 8: CodeWiki Background Update ---
+    if (['software_engineer', 'system_architect', 'database_admin', 'devops_engineer'].includes(personaId)) {
+      console.log(chalk.gray(`[WIKI] Background Technical Writer is updating the Living Knowledge Graph...`));
+      await codeWiki.updateWiki(prompt);
+      console.log(chalk.green(`[WIKI] CodeWiki.json successfully updated.`));
+    }
+
     
     // --- Phase 5: Noise Cancellation ---
     console.log(chalk.gray(`[DEBUG] Simulating 10,000 lines of terminal output...`));
