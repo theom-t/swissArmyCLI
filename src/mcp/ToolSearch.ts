@@ -41,6 +41,19 @@ export class ToolSearch {
         required: ['recipient', 'subject', 'body']
       }
     });
+
+    this.toolRegistry.set('generate_graph', {
+      name: 'generate_graph',
+      description: 'Generates a visual multimodal graph (Mermaid) and saves it as an HTML/SVG file.',
+      parameters: {
+        type: 'object',
+        properties: { 
+          title: { type: 'string' }, 
+          mermaidMarkup: { type: 'string' } 
+        },
+        required: ['title', 'mermaidMarkup']
+      }
+    });
   }
 
   public searchTools(intent: string): ToolSchema[] {
@@ -61,6 +74,11 @@ export class ToolSearch {
 
     if (normalized.includes('email') || normalized.includes('message') || normalized.includes('business')) {
       const tool = this.toolRegistry.get('draft_email');
+      if (tool) results.push(tool);
+    }
+
+    if (normalized.includes('graph') || normalized.includes('visual') || normalized.includes('chart') || normalized.includes('diagram')) {
+      const tool = this.toolRegistry.get('generate_graph');
       if (tool) results.push(tool);
     }
 
