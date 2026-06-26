@@ -20,10 +20,14 @@ const toolSearch = new ToolSearch();
 const codeWiki = new CodeWikiManager(providerRouter);
 const graphTool = new GenerateGraphTool();
 
+import fs from 'fs';
+import path from 'path';
+
 program
   .name('swiss')
   .description('Swiss Army CLI - Multi-Persona AI Coding & Business Agent')
-  .version('1.0.0');
+  .version('1.0.0')
+  .option('-d, --debug', 'Enable debug logging to .swiss/debug.log');
 
 program
   .command('eval')
@@ -56,6 +60,19 @@ program
   });
 
 import * as readline from 'readline';
+
+function writeLog(msg: string) {
+  const options = program.opts();
+  if (options.debug) {
+    const logDir = path.join(process.cwd(), '.swiss');
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    const logFile = path.join(logDir, 'debug.log');
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(logFile, `[${timestamp}] ${msg.replace(/\x1B\[[0-9;]*[mG]/g, '')}\n`);
+  }
+}
 
 async function executeCoreLoop(prompt: string) {
     console.log(chalk.blue('\nPi CLI Framework Initiated...'));
@@ -124,6 +141,7 @@ import { Readable } from 'stream';
 
 async function runInteractiveMode() {
   console.log(chalk.cyan('\n🇨🇭 Booting Swiss Army Proxy Brain...'));
+  writeLog('[INIT] Booting Swiss Army Proxy Brain...');
   
   const app = express();
   app.use(cors());
@@ -141,13 +159,16 @@ async function runInteractiveMode() {
   app.post('/v1/chat/completions', async (req, res) => {
     try {
       const payload = req.body;
+      writeLog(`[PROXY INCOMING] Received chat completion request from Pi UI`);
       
       // 1. Noise Cancellation (Context Filter)
       if (payload.messages) {
         for (let msg of payload.messages) {
           if (msg.role === 'tool' || msg.role === 'user') {
-             if (typeof msg.content === 'string') {
+             if (typeof msg.content === 'string' && msg.content.length > 500) {
+                const originalLength = msg.content.length;
                 msg.content = filter.stripNoise(msg.content);
+                writeLog(`[FILTER] Reduced terminal noise from ${originalLength} chars to ${msg.content.length} chars.`);
              }
           }
         }
@@ -161,7 +182,7 @@ async function runInteractiveMode() {
       }
       
       const personaDef = PERSONA_REGISTRY.find(p => p.id === personaId) || PERSONA_REGISTRY[0];
-      console.log(chalk.magenta(`\n[ROUTER] -> Forwarding task via Sub-Agent: ${personaDef.name} (${personaDef.role})`));
+      writeLog(`[ROUTER] Intent Parsed. Forwarding task via Sub-Agent: ${personaDef.name} (${personaDef.role})`);
 
       // 3. Inject Ponytail & Persona Rules into the System Prompt
       let systemMsg = payload.messages.find((m: any) => m.role === 'system');
@@ -179,7 +200,7 @@ async function runInteractiveMode() {
       const cleanModel = config.models.major.replace(/^google\//, '').replace(/^gemini\//, '');
       const targetUrl = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
       
-      console.log(chalk.gray(`[PROXY] Forwarding optimized payload to Gemini (${cleanModel})...`));
+      writeLog(`[PROXY OUTGOING] Forwarding payload to actual LLM endpoint: Gemini (${cleanModel})...`);
       
       const response = await fetch(targetUrl, {
         method: 'POST',
@@ -195,7 +216,7 @@ async function runInteractiveMode() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.log(chalk.red(`[PROXY ERROR]: ${errorText}`));
+        writeLog(`[PROXY ERROR] Upstream API Error ${response.status}: ${errorText}`);
         return res.status(response.status).json({
           error: {
             message: `[Swiss Proxy Error] Upstream returned ${response.status}: ${errorText}`,
@@ -203,6 +224,8 @@ async function runInteractiveMode() {
           }
         });
       }
+
+      writeLog(`[PROXY SUCCESS] Received success response from upstream. Piping SSE stream back to Pi UI.`);
 
       // 5. Stream back or JSON back
       if (payload.stream) {
@@ -223,13 +246,14 @@ async function runInteractiveMode() {
       }
 
     } catch (e: any) {
-      console.log(chalk.red(`[PROXY CRASH]: ${e.message}`));
+      writeLog(`[PROXY CRASH] ${e.message}`);
       res.status(500).json({ error: e.message });
     }
   });
 
   const PORT = 11435;
   const server = app.listen(PORT, () => {
+    writeLog(`[PROXY READY] Server listening on http://localhost:${PORT}`);
     console.log(chalk.green(`[PROXY] Swiss Army proxy listening on http://localhost:${PORT}`));
     console.log(chalk.cyan(`[LAUNCH] Booting Pi CLI frontend...\n`));
     
@@ -244,6 +268,7 @@ async function runInteractiveMode() {
 
     piProcess.on('exit', () => {
       console.log(chalk.cyan('\n[EXIT] Pi CLI closed. Shutting down Swiss Army Proxy.'));
+      writeLog(`[SHUTDOWN] Pi CLI exited. Shutting down Proxy.`);
       server.close();
       process.exit(0);
     });
@@ -261,8 +286,4 @@ program
     await executeCoreLoop(prompt);
   });
 
-if (process.argv.length <= 2) {
-  runInteractiveMode();
-} else {
-  program.parse();
-}
+program.parse();
