@@ -1,0 +1,20 @@
+CLI UI
+https://pi.dev/packages
+
+evals
+https://www.harborframework.com/docs/tutorials/running-terminal-bench
+
+cool multimodal skill
+https://graphify.net/
+
+efficient system
+https://github.com/DietrichGebert/ponytail
+
+document generation
+https://github.com/FSoft-AI4Code/CodeWiki
+
+Agent systems
+https://github.com/msitarzewski/agency-agents
+
+understanding CodeWiki
+https://github.com/Egonex-AI/Understand-Anything
